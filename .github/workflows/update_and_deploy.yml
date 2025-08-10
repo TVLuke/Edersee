@@ -33,16 +33,16 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy via SFTP
+      - name: Deploy via FTP
         env:
-          SFTP_HOST: ${{ secrets.SFTP_HOST }}
-          SFTP_USER: ${{ secrets.SFTP_USER }}
-          SFTP_PASS: ${{ secrets.SFTP_PASSWORD }}
+          FTP_HOST: ${{ secrets.SFTP_HOST }}
+          FTP_USER: ${{ secrets.SFTP_USER }}
+          FTP_PASS: ${{ secrets.SFTP_PASSWORD }}
         run: |
           lftp -d -c "
-          set sftp:auto-confirm yes;
+          set ftp:ssl-allow no;
           set net:timeout 30;
           set net:max-retries 3;
-          open -u $SFTP_USER,$SFTP_PASS sftp://$SFTP_HOST;
+          open -u $FTP_USER,$FTP_PASS ftp://$FTP_HOST;
           mirror -R --parallel=1 --verbose --include=index.html ./ ./
           "
