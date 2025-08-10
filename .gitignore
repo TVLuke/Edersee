@@ -1,0 +1,8 @@
+/lib
+/venv
+/extracted_water_level_*.csv
+/pegelonline-edertalsperre-W-20000101-20250810/*
+/__pycache__
+/share
+
+combined_historic_data.py

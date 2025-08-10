@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edertalsperre Wasserstand Interaktive Visualisierung</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0066cc;
+        }
+        .chart-container {
+            position: relative;
+            height: 70vh;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-radius: 8px;
+            border: 1px solid #d0e3ff;
+        }
+        .date-range {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .date-range label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #004c99;
+        }
+        .event-list {
+            margin-top: 20px;
+        }
+        .event-list h3 {
+            margin-bottom: 10px;
+        }
+        .event-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .event-item.range {
+            background-color: #eeffee;
+            border-left: 4px solid #00cc00;
+        }
+        .event-item.point {
+            background-color: #eeffee;
+            border-left: 4px solid #00cc00;
+        }
+        .info-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-radius: 8px;
+            border: 1px solid #d0e3ff;
+        }
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Edertalsperre Wasserstand Interaktive Visualisierung</h1>
+        
+        <div class="controls">
+            <div class="date-range">
+                <div>
+                    <label for="start-date">Startdatum:</label>
+                    <input type="date" id="start-date">
+                </div>
+                <div>
+                    <label for="end-date">Enddatum:</label>
+                    <input type="date" id="end-date">
+                </div>
+                <button id="apply-range">Anwenden</button>
+                <button id="reset-range">Zurücksetzen</button>
+            </div>
+            <div>
+                <label for="show-events">
+                    <input type="checkbox" id="show-events" checked> 
+                    Historische Ereignisse anzeigen
+                </label>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="water-level-chart"></canvas>
+        </div>
+        
+        <div class="info-box">
+            <h2>Über diese Visualisierung</h2>
+            <p>Diese interaktive Grafik zeigt den Wasserstand der Edertalsperre über die Zeit. Die Daten stammen aus zwei Quellen:</p>
+            <ul>
+                <li>2000-2025: Tatsächliche Messdaten</li>
+                <li>Vor 2000: Aus Grafiken extrahierte historische Daten</li>
+            </ul>
+            <p>Die rote horizontale Linie markiert den Schwellenwert von BUILDING_THRESHOLD_PLACEHOLDER m, bei dem Gebäude sichtbar werden. Jahre, in denen der Wasserstand unter diesen Schwellenwert fiel, sind rot hervorgehoben.</p>
+            <p>Die Wasserstandswerte sind normalisiert (Wert - NORMALIZATION_OFFSET_PLACEHOLDER m), um die Darstellung zu verbessern.</p>
+        </div>
+        
+        <div class="event-list">
+            <h2>Historische Ereignisse</h2>
+            <div id="events-container"></div>
+        </div>
+        
+        <footer>
+            <p>Erstellt mit Python und Chart.js | Datenquelle: Pegelonline und historische Aufzeichnungen</p>
+        </footer>
+    </div>
+
+    <footer style="background-color: #333; color: darkgrey; text-align: center; padding: 10px; width: 100%; position: fixed; bottom: 0; left: 0;">
+        <a href="https://tvluke.de/pages/edertalsperre.html" style="color: darkgrey; margin: 0 10px;">Über dieses Projekt</a>
+        <a href="https://tvluke.de/pages/datenschutz.html" style="color: darkgrey; margin: 0 10px;">Datenschutz</a>
+        <a href="https://tvluke.de/pages/impressum.html" style="color: darkgrey; margin: 0 10px;">Impressum</a>
+        <a href="https://github.com/TVLuke/Edersee" style="color: darkgrey; margin: 0 10px;">Code</a>
+    </footer>
+
+    <script>
+        // Water level data
+        const waterLevelData = WATER_LEVEL_DATA_PLACEHOLDER;
+        
+        // Yearly average water level data
+        const yearlyAvgData = YEARLY_AVG_DATA_PLACEHOLDER;
+        
+        // Historical events
+        const historicalEvents = HISTORICAL_EVENTS_PLACEHOLDER;
+        
+        // Years when buildings were revealed
+        const revealedYears = REVEALED_YEARS_PLACEHOLDER;
+        
+        // Building threshold
+        const buildingThreshold = BUILDING_THRESHOLD_NORMALIZED_PLACEHOLDER;
+        
+        // Format date for display
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('de-DE', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+        
+        // Populate events list
+        function populateEventsList() {
+            const container = document.getElementById('events-container');
+            container.innerHTML = '';
+            
+            historicalEvents.forEach(event => {
+                const eventElement = document.createElement('div');
+                eventElement.className = `event-item ${event.type}`;
+                
+                if (event.type === 'range') {
+                    eventElement.innerHTML = `<strong>${event.name}</strong>: ${formatDate(event.start)} bis ${formatDate(event.end)}`;
+                } else {
+                    eventElement.innerHTML = `<strong>${event.name}</strong>: ${formatDate(event.date)}`;
+                }
+                
+                container.appendChild(eventElement);
+            });
+        }
+        
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('water-level-chart').getContext('2d');
+            
+            // Prepare data for Chart.js
+            const chartData = waterLevelData.map(item => ({
+                x: item.timestamp,
+                y: item.value
+            }));
+            
+            // Prepare yearly average data for Chart.js
+            const yearlyAvgChartData = yearlyAvgData.map(item => ({
+                x: item.timestamp,
+                y: item.value
+            }));
+            
+            // Find min and max dates
+            const dates = waterLevelData.map(item => new Date(item.timestamp));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            
+            // Set initial date inputs
+            document.getElementById('start-date').value = minDate.toISOString().split('T')[0];
+            document.getElementById('end-date').value = maxDate.toISOString().split('T')[0];
+            
+            // Create annotations for historical events
+            const annotations = [];
+            
+            // Add building threshold line
+            annotations.push({
+                type: 'line',
+                scaleID: 'y',
+                value: buildingThreshold,
+                borderColor: 'red',
+                borderWidth: 2,
+                label: {
+                    content: 'Gebäude sichtbar (224.70m)',
+                    enabled: true,
+                    position: 'start',
+                    backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                    color: 'white',
+                    font: {
+                        size: 12
+                    }
+                }
+            });
+            
+            // Create the chart configuration
+            const config = {
+                type: 'line',
+                data: {
+                    datasets: [
+                    {
+                        label: 'Wasserstand (m über NN - 205m)',
+                        data: chartData,
+                        borderColor: 'blue',
+                        backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                        fill: true,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Jährlicher Durchschnitt',
+                        data: yearlyAvgChartData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        pointRadius: 3,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Datum'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Wasserstand (m über NN - 205m)'
+                            },
+                            min: 0,
+                            suggestedMax: 65  // 270 - 205 = 65
+                        }
+                    },
+                    plugins: {
+                        annotation: {
+                            annotations: annotations
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return formatDate(tooltipItems[0].raw.x);
+                                },
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    return `Wasserstand: ${value.toFixed(2)}m (${(value + 205).toFixed(2)}m über NN)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // Create the chart with the configuration
+            window.waterLevelChart = new Chart(ctx, config);
+            
+            updateChartWithEvents();
+        }
+        
+        function updateChartWithEvents() {
+            if (!window.waterLevelChart) return;
+            
+            const showEvents = document.getElementById('show-events').checked;
+            const annotations = [
+                // Building threshold line (always show)
+                {
+                    type: 'line',
+                    scaleID: 'y',
+                    value: buildingThreshold,
+                    borderColor: 'red',
+                    borderWidth: 2,
+                    label: {
+                        content: 'Gebäude sichtbar (224.70m)',
+                        enabled: true,
+                        position: 'start',
+                        backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                        color: 'white',
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            ];
+            
+            if (showEvents) {
+                // Add revealed years as box annotations
+                revealedYears.forEach(year => {
+                    annotations.push({
+                        type: 'box',
+                        xMin: year.start,
+                        xMax: year.end,
+                        backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                        borderColor: 'rgba(255, 0, 0, 0.3)',
+                        borderWidth: 1,
+                        label: {
+                            content: year.year.toString(),
+                            enabled: true,
+                            position: 'start',
+                            backgroundColor: 'rgba(255, 0, 0, 0.7)',
+                            color: 'white',
+                            font: {
+                                size: 10
+                            }
+                        }
+                    });
+                });
+                
+                // Add historical events
+                historicalEvents.forEach(event => {
+                    if (event.type === 'range') {
+                        // Range event (box)
+                        annotations.push({
+                            type: 'box',
+                            xMin: event.start,
+                            xMax: event.end,
+                            backgroundColor: 'rgba(200, 255, 200, 0.2)',
+                            borderColor: 'rgba(0, 180, 0, 0.5)',
+                            borderWidth: 1,
+                            label: {
+                                content: event.name,
+                                enabled: true,
+                                position: 'start',
+                                backgroundColor: 'rgba(0, 180, 0, 0.7)',
+                                color: 'white',
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        });
+                    } else {
+                        // Point event (line)
+                        annotations.push({
+                            type: 'line',
+                            xMin: event.date,
+                            xMax: event.date,
+                            borderColor: 'rgba(0, 180, 0, 0.7)',
+                            borderWidth: 2,
+                            label: {
+                                content: event.name,
+                                enabled: true,
+                                position: 'start',
+                                backgroundColor: 'rgba(0, 180, 0, 0.7)',
+                                color: 'white',
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Update chart annotations
+            window.waterLevelChart.options.plugins.annotation.annotations = annotations;
+            window.waterLevelChart.update();
+        }
+        
+        function applyDateRange() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            if (!startDate || !endDate) return;
+            
+            window.waterLevelChart.options.scales.x.min = startDate;
+            window.waterLevelChart.options.scales.x.max = endDate;
+            window.waterLevelChart.update();
+        }
+        
+        function resetDateRange() {
+            const dates = waterLevelData.map(item => new Date(item.timestamp));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            
+            document.getElementById('start-date').value = minDate.toISOString().split('T')[0];
+            document.getElementById('end-date').value = maxDate.toISOString().split('T')[0];
+            
+            window.waterLevelChart.options.scales.x.min = undefined;
+            window.waterLevelChart.options.scales.x.max = undefined;
+            window.waterLevelChart.update();
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize chart
+            initChart();
+            
+            // Populate events list
+            populateEventsList();
+            
+            // Set up event listeners
+            document.getElementById('apply-range').addEventListener('click', applyDateRange);
+            document.getElementById('reset-range').addEventListener('click', resetDateRange);
+            document.getElementById('show-events').addEventListener('change', updateChartWithEvents);
+        });
+    </script>
+</body>
+</html>
