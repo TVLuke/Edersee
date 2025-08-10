@@ -17,7 +17,7 @@ BUILDING_THRESHOLD = 224.70  # Water level threshold where buildings are reveale
 # File paths
 ACTUAL_DATA_FILE = 'pegelonline-edertalsperre.json'
 TEMPLATE_FILE = 'templates/water_level_explorer.html'
-OUTPUT_FILE = 'edertalsperre_interaktiv.html'
+OUTPUT_FILE = 'index.html'
 
 # Historical events to mark on the timeline
 HISTORICAL_EVENTS = [
