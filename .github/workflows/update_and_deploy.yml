@@ -44,5 +44,5 @@ jobs:
           set net:timeout 30;
           set net:max-retries 3;
           open -u $FTP_USER,$FTP_PASS ftp://$FTP_HOST;
-          mirror -R --parallel=1 --verbose --include=index.html ./ ./
+          mirror -R --parallel=1 --verbose --include=index.html --exclude-glob=.git/ --exclude-glob=.github/ ./ ./
           "
