@@ -45,10 +45,3 @@ jobs:
           open -u $SFTP_USER,$SFTP_PASS sftp://$SFTP_HOST;
           mirror -R --parallel=2 --verbose --include=index.html ./ /tvluke.de/httpdocs/edertalsperre-interaktiv
           "
-
-      - name: Create artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: generated-html
-          path: index.html
-          retention-days: 7
