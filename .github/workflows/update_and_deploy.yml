@@ -39,8 +39,10 @@ jobs:
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASS: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          lftp -c "
+          lftp -d -c "
           set sftp:auto-confirm yes;
+          set net:timeout 30;
+          set net:max-retries 3;
           open -u $SFTP_USER,$SFTP_PASS sftp://$SFTP_HOST;
-          mirror -R --parallel=2 --verbose --include=index.html ./ /tvluke.de/httpdocs/edertalsperre-interaktiv
+          mirror -R --parallel=1 --verbose --include=index.html ./ /tvluke.de/httpdocs/edertalsperre-interaktiv
           "
